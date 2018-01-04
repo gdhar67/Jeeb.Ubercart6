@@ -1,0 +1,112 @@
+<?php
+/**
+ * @file
+ * uc_jeeb.install
+ *
+ * Installation file for the Bitpay payment module for Ubercart
+ */
+
+/**
+ * Implementation of hook_requirements().
+ *
+ * @param $phase
+ *
+ * @return array
+ */
+function uc_jeeb_requirements($phase)
+{
+    $t = get_t();
+
+    // Jeeb's provided API code requires cURL.
+    $has_curl = function_exists('curl_init');
+    //initialize requirements
+    $requirements = array();
+    if (variable_get('uc_payment_method_jeeb_checkout', FALSE))
+    {
+        $requirements['uc_jeeb_curl'] = array(
+            'title' => $t('cURL'),
+            'value' => $has_curl ? $t('Enabled') : $t('Not found'),
+        );
+        if (!$has_curl)
+        {
+            $requirements['uc_jeeb_curl']['severity'] = REQUIREMENT_ERROR;
+            $requirements['uc_jeeb_curl']['description'] = $t("Jeeb requires the PHP <a href='!curl_url'>cURL</a> library.", array('!curl_url' => 'http://php.net/manual/en/curl.setup.php'));
+        }
+    }
+
+    return $requirements;
+}
+
+/**
+ * Implementation of hook_schema().
+ *
+ * @return array
+ */
+function uc_jeeb_schema()
+{
+    $schema = array();
+
+    $schema['uc_payment_jeeb'] = array(
+        'description' => 'Stores Jeeb payment information.',
+        'fields' => array(
+          'order_id' => array(
+              'description' => 'The {uc_orders}.order_id.',
+              'type'        => 'int',
+              'unsigned'    => TRUE,
+              'not null'    => TRUE,
+          ),
+          'reference_no' => array(
+                'description' => 'Primary key: the Jeeb Invoice\'s reference no.',
+                'type'        => 'varchar',
+                'length'      => 255,
+                'not null'    => TRUE,
+            ),
+            'btc' => array(
+                'description' => 'The btc price for {uc_orders}.order_id.',
+                'type'        => 'float',
+                'unsigned'    => TRUE,
+                'not null'    => TRUE,
+            ),
+            'token' => array(
+                'description' => 'The unique token made for every transaction.',
+                'type'        => 'varchar',
+                'length'      => 255,
+                'not null'    => TRUE,
+            ),
+        ),
+        'indexes' => array(
+            'order_id' => array('order_id'),
+        ),
+        'primary key' => array('reference_no')
+    );
+
+    return $schema;
+}
+
+/**
+ * Implementation of hook_install().
+ *
+ * Installs the Jeeb module; particularly, installs the database
+ * schema and alters orders statuses to include 'Jeeb pending'.
+ */
+function uc_jeeb_install()
+{
+    // Set the module weight so it can override other modules.
+    db_query("UPDATE {system} SET weight = 99 WHERE name = 'jeeb'");
+    // install the schema for the database
+    drupal_install_schema('uc_jeeb');
+}
+
+
+/**
+ * Implementation of hook_uninstall()
+ *
+ * Uninstalls the Jeeb module.
+ */
+function uc_jeeb_uninstall()
+{
+  // Remove the schema
+  drupal_uninstall_schema('uc_jeeb');
+  // Remove relevant data from the DB
+  // db_query("DELETE FROM {variable} WHERE name LIKE 'uc_jeeb_%%'");
+}
