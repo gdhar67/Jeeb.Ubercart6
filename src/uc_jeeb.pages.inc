@@ -30,15 +30,16 @@ function uc_jeeb_notification()
   else if ( $json['stateId']== 4 ) {
     jeeb_log('Order Id received = '.$json['orderNo'].' stateId = '.$json['stateId']);
     $order = uc_order_load($json["orderNo"]);
-    $token =  db_result(db_query("SELECT token FROM {uc_payment_jeeb} WHERE order_id = %d", $order->order_id));
+    // $token =  db_result(db_query("SELECT token FROM {uc_payment_jeeb} WHERE order_id = %d", $order->order_id));
+    $token = $json["token"];
     $data = array(
       "token" => $token,
     );
 
     $data_string = json_encode($data);
     $api_key = variable_get('uc_jeeb_current_api_key');;
-    $baseUri = variable_get('uc_jeeb_debug_mode') ? "http://test.jeeb.io:9876/" : "https://jeeb.io/" ;
-    $url = $baseUri.'api/bitcoin/confirm/'.$api_key;
+    $baseUri = "https://core.jeeb.io/api/" ;
+    $url = $baseUri.'payments/' . $api_key . '/confirm';
     jeeb_log("Signature:".$api_key." Base-Url:".$baseUri." Url:".$url);
 
     $ch = curl_init($url);
@@ -59,7 +60,7 @@ function uc_jeeb_notification()
       jeeb_log('Payment confirmed by jeeb');
       $comment = t('Secure Payment ID: @id confirmed by Jeeb.', array('@id' => $json["referenceNo"]));
       uc_payment_enter($order->order_id, 'jeeb', uc_order_get_total($order), $order->uid, NULL, $comment, time());
-      uc_order_comment_save($order->order_id, 0, t('Payment of @amount was confirmed by Jeeb.', array('@amount' => $json["requestAmount"])), 'admin');
+      uc_order_comment_save($order->order_id, 0, t('Payment of @amount was confirmed by Jeeb.', array('@amount' => $json["value"])), 'admin');
 
       $order->order_status = 'completed';
       uc_order_save($order);
@@ -72,28 +73,28 @@ function uc_jeeb_notification()
   else if ( $json['stateId']== 5 ) {
     jeeb_log('Order Id received = '.$json['orderNo'].' stateId = '.$json['stateId']);
     $order = uc_order_load($json["orderNo"]);
-    uc_order_comment_save($order->order_id, 0, t('Payment of @amount was confirmed by Jeeb.', array('@amount' => $json["requestAmount"])), 'admin');
+    uc_order_comment_save($order->order_id, 0, t('Invoice was expired'), 'admin');
     $order->order_status = 'canceled';
     uc_order_save($order);
   }
   else if ( $json['stateId']== 6 ) {
     jeeb_log('Order Id received = '.$json['orderNo'].' stateId = '.$json['stateId']);
     $order = uc_order_load($json["orderNo"]);
-    uc_order_comment_save($order->order_id, 0, t('Invoice was expired'), 'admin');
+    uc_order_comment_save($order->order_id, 0, t('Over payment occurred'), 'admin');
     $order->order_status = 'canceled';
     uc_order_save($order);
   }
   else if ( $json['stateId']== 7 ) {
     jeeb_log('Order Id received = '.$json['orderNo'].' stateId = '.$json['stateId']);
     $order = uc_order_load($json["orderNo"]);
-    uc_order_comment_save($order->order_id, 0, t('Over payment occurred'), 'admin');
+    uc_order_comment_save($order->order_id, 0, t('Under payment occurred'), 'admin');
     $order->order_status = 'canceled';
     uc_order_save($order);
   }
   else{
     jeeb_log('Cannot read state id sent by Jeeb');
     $order = uc_order_load($json["orderNo"]);
-    uc_order_comment_save($order->order_id, 0, t('Under payment occurred'), 'admin');
+    uc_order_comment_save($order->order_id, 0, t('Cannot read StateId. Contact Jeeb immediately.'), 'admin');
     $order->order_status = 'canceled';
     uc_order_save($order);
   }
