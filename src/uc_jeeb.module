@@ -53,10 +53,11 @@ function uc_jeeb_settings_form()
         '#type'    => 'radios',
         '#title'   => t('Select Base Currency'),
         '#options' => array(
-            0 => t('BTC'),
-            1 => t('EUR'),
-            2 => t('IRR'),
-            3 => t('USD')
+          0 => t('BTC'),
+          1 => t('EUR'),
+          2 => t('IRR'),
+          3 => t('TOMAN'),
+          4 => t('USD')
         ),
         '#default_value' => variable_get('uc_jeeb_base_cur', 0),
     );
@@ -189,13 +190,50 @@ function uc_payment_method_jeeb($op, &$order)
     case 'cart-review':
         jeeb_log("Entered Cart-Review");
         $url       = "https://core.jeeb.io/api/" ;
-        $amount    = uc_order_get_total($order);
+        $order_total= uc_order_get_total($order);
         $signature = variable_get('uc_jeeb_current_api_key');
-        $lang       = variable_get('uc_jeeb_lang')== "0" ? NULL : variable_get('uc_jeeb_lang')=="1" ? "en" : variable_get('uc_jeeb_lang')=="2" ? "fa": "" ;
+        // $lang       = variable_get('uc_jeeb_lang')== "0" ? NULL : variable_get('uc_jeeb_lang')=="1" ? "en" : variable_get('uc_jeeb_lang')=="2" ? "fa": "" ;
         $target_cur = variable_get('uc_jeeb_target_cur');
-        $baseCur    = variable_get('uc_jeeb_base_cur')== "0" ? "btc" : variable_get('uc_jeeb_base_cur')=="1" ? "eur" : variable_get('uc_jeeb_base_cur')=="2" ? "irr": variable_get('uc_jeeb_base_cur')=="3" ? "usd": "" ;
+        // $baseCur    = variable_get('uc_jeeb_base_cur')== "0" ? "btc" : variable_get('uc_jeeb_base_cur')=="1" ? "eur" : variable_get('uc_jeeb_base_cur')=="2" ? "irr": variable_get('uc_jeeb_base_cur')=="3" ? "usd": "" ;
 
-        $btc = convertIrrToBtc($url, $amount, $signature, $baseCur);
+        switch (variable_get('uc_jeeb_lang')) {
+            case 0:
+                $lang = NULL;
+                break;
+            case 1:
+                $lang = "en";
+                break;
+            case 2:
+                $lang = "fa";
+                break;
+            default:
+        }
+
+        switch (variable_get('uc_jeeb_base_cur')) {
+            case 0:
+                $baseCur = "btc";
+                break;
+            case 1:
+                $baseCur = "eur";
+                break;
+            case 2:
+                $baseCur = "irr";
+                break;
+            case 3:
+                $baseCur = "toman";
+                break;
+            case 4:
+                $baseCur = "usd";
+                break;
+            default:
+        }
+
+        if($baseCur=='toman'){
+          $baseCur='irr';
+          $order_total *= 10;
+        }
+
+        $amount = convertIrrToBtc($url, $order_total, $signature, $baseCur);
         jeeb_log("Url:".$url." Bitcoin:".$amount." Signature:".$signature);
 
         $params = array(
